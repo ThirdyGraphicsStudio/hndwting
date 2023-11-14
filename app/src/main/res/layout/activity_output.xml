@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical"
+    tools:context=".Output">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center"
+        android:layout_marginVertical="20dp"
+        >
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/scan_fill"
+            app:backgroundTint="@color/primary"
+            />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="30sp"
+            android:fontFamily="@font/montserratblack"
+            android:text="HANDWRITTEN"
+            android:textColor="@color/black"
+            android:layout_marginHorizontal="10dp"
+            android:textAlignment="center"
+            />
+
+
+
+
+
+
+
+
+    </LinearLayout>
+
+
+    <EditText
+        android:id="@+id/et_output"
+        android:background="@color/white"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="dsadasdasdasdasd"
+        android:gravity="start"
+        android:padding="20dp"
+        android:fontFamily="@font/montserratmedium"
+        android:textSize="20sp"
+        />
+
+
+
+</LinearLayout>
