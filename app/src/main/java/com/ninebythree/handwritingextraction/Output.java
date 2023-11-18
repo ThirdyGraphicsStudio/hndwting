@@ -138,7 +138,7 @@ public class Output extends AppCompatActivity {
                 Button btnDisregard = dialog.findViewById(R.id.btnDisregard);
                 ProgressBar progressBar2 = dialog.findViewById(R.id.progressBar);
 
-
+                //Test
                 btnOkay.setEnabled(false);
                 inputs.setText("");
                 progressBar2.setVisibility(View.VISIBLE);
