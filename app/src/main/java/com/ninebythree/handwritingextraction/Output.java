@@ -143,7 +143,7 @@ public class Output extends AppCompatActivity {
                 inputs.setText("");
                 progressBar2.setVisibility(View.VISIBLE);
 
-                    String apiKey = "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";
+                    String apiKey = Api.API;
 
                     new Thread(() -> {
                         try {
