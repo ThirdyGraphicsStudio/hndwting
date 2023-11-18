@@ -8,17 +8,19 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-
+import com.ninebythree.handwritingextraction.ml.Segmentation;
 
 import com.google.android.material.button.MaterialButton;
 
@@ -33,6 +35,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Base64;
 import java.util.Scanner;
 import java.util.stream.Collectors;
@@ -40,6 +43,8 @@ import java.util.stream.Collectors;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -56,6 +61,7 @@ public class Preview extends AppCompatActivity {
     private MaterialButton btnExtract;
     private ProgressBar progressBar;
     String extractedText;
+    private int imageSize = 224;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,12 +78,43 @@ public class Preview extends AppCompatActivity {
         btnExtract.setOnClickListener(v -> {
             progressBar.setVisibility(ProgressBar.VISIBLE);
             try {
-                sendapi(imageUri);
+                if((segmentImage(segmentImage(this, imageUri)).equals("1"))){
+                    sendapi(imageUri);
+                }else {
+                    Toast.makeText(getApplicationContext(), "Image Not Supported", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(ProgressBar.GONE);
+                    finish();
+                }
+
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
 
+    }
+
+    public Bitmap segmentImage(Context context, Uri imageUri) {
+        Bitmap image = null;
+        try {
+             image = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+
+            // Check if image is not null
+            if (image != null) {
+                int dimension = Math.min(image.getWidth(), image.getHeight());
+                image = ThumbnailUtils.extractThumbnail(image, dimension, dimension);
+
+                // Assuming 'imageSize' is defined and valid
+                image = Bitmap.createScaledBitmap(image, imageSize, imageSize, false);
+
+
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(getApplicationContext(), "Failed to load image " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            // Handle the exception
+        }
+        return image;
     }
 
     private void sendapi(Uri imageUri) throws IOException {
@@ -149,9 +186,15 @@ public class Preview extends AppCompatActivity {
                             @Override
                             public void run() {
                                 progressBar.setVisibility(ProgressBar.GONE);
-                                Intent intent = new Intent(Preview.this, Output.class);
-                                intent.putExtra("output", extractedText);
-                                startActivity(intent);
+                                if(extractedText.equals("")){
+                                    Toast.makeText(getApplicationContext(), "Something wrong in the image", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                }else{
+                                    Intent intent = new Intent(Preview.this, Output.class);
+                                    intent.putExtra("output", extractedText);
+                                    startActivity(intent);
+                                }
+
                             }
                         });
                     } catch (JSONException e) {
@@ -180,6 +223,74 @@ public class Preview extends AppCompatActivity {
         }
         return bitmap;
     }
+
+
+
+
+    public String segmentImage(Bitmap image) {
+        String result = "";
+        try {
+            Segmentation segmentation = Segmentation.newInstance(getApplicationContext());
+
+            // Creates inputs for reference.
+            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
+            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4*imageSize*imageSize*3);
+            byteBuffer.order(ByteOrder.nativeOrder());
+
+            int [] intValues = new int[imageSize*imageSize];
+            image.getPixels(intValues,0,image.getWidth(),0,0,image.getWidth(),image.getHeight());
+            int pixel = 0;
+            for(int i = 0; i < imageSize; i++){
+                for(int j = 0; j < imageSize; j++){
+                    int val = intValues[pixel++]; // RGB
+                    byteBuffer.putFloat(((val >> 16) & 0xFF)*(1.f/255.f));
+                    byteBuffer.putFloat(((val >> 8) & 0xFF)*(1.f/255.f));
+                    byteBuffer.putFloat((val & 0xFF)*(1.f/255.f));
+                }
+            }
+
+            inputFeature0.loadBuffer(byteBuffer);
+
+            // Runs model inference and gets result.
+            Segmentation.Outputs outputs = segmentation.process(inputFeature0);
+            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+            float[] confidences = outputFeature0.getFloatArray();
+            int maxPos = 0;
+            float maxConfidence = 0;
+            for(int i = 0; i < confidences.length; i++){
+                if(confidences[i] > maxConfidence){
+                    maxConfidence = confidences[i];
+                    maxPos = i;
+                }
+            }
+
+            String[] classes = {"0", "1"};
+
+            Log.d("RESULT", classes[maxPos]);
+            String food = classes[maxPos];
+            result = classes[maxPos];
+            String s = "";
+            for(int i = 0; i < classes.length; i++){
+                s += String.format("%s: %.1f%%\n", classes[i], confidences[i] * 100);
+            }
+
+            Log.d("RESULT", "Confidence" + s);
+
+            // Releases model resources if no longer used.
+            segmentation.close();
+
+
+
+        } catch (IOException e) {
+            // TODO Handle the exception
+            Toast.makeText(getApplicationContext(), "Failed to load! Try again later" + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+
+        return result;
+    }
+
+
 
 
     private void sendapi2(Uri imageUri) {
