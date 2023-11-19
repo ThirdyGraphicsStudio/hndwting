@@ -81,7 +81,6 @@
 </LinearLayout>
 
     <ProgressBar
-        android:visibility="gone"
         android:layout_width="120dp"
         android:layout_height="1120dp"
         android:id="@+id/progressBar"

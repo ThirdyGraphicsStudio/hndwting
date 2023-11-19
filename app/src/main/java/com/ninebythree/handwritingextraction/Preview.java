@@ -265,7 +265,7 @@ public class Preview extends AppCompatActivity {
                 }
             }
 
-            String[] classes = {"0", "1"};
+            String[] classes = {"0", "1", "2"};
 
             Log.d("RESULT", classes[maxPos]);
             String food = classes[maxPos];

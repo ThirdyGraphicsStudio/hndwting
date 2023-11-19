@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton btnUpload,btnCamera;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private Uri photoURI = null;
+    private static final int MY_PERMISSIONS_REQUEST_CAMERA = 100; // Can be any integer
 
     private Boolean status = false;
     private String currentPhotoPath;
@@ -57,6 +58,11 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void openCamera() {
+
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, MY_PERMISSIONS_REQUEST_CAMERA);
+        } else {
+
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // Ensure that there's a camera activity to handle the intent
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
@@ -77,6 +83,9 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
             }
         }
+
+        }
+
     }
 
     private File createImageFile() throws IOException {
@@ -122,6 +131,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_CAMERA: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission was granted, resume the camera functionality
+                } else {
+                    // Permission denied, disable the functionality that depends on this permission.
+                }
+                return;
+            }
+        }
+    }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {

@@ -26,6 +26,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.textservice.SentenceSuggestionsInfo;
+import android.view.textservice.SpellCheckerSession;
+import android.view.textservice.SuggestionsInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -39,21 +42,24 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Scanner;
 import android.Manifest;
 
-public class Output extends AppCompatActivity {
+public class Output extends AppCompatActivity  {
     File myPath;
     int totalHeight, totalWidth;
 
@@ -65,9 +71,11 @@ public class Output extends AppCompatActivity {
     NestedScrollView parentRelativeLayout;
     private ProgressBar progressBar;
     Display receiptDisplay;
+    private File filePath = null;
     private static final int MY_PERMISSIONS_REQUEST_CODE = 123;
+    private MaterialButton btnBack;
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)  {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_output);
 
@@ -81,9 +89,8 @@ public class Output extends AppCompatActivity {
         linearLayout = findViewById(R.id.ll_output);
         parentRelativeLayout = findViewById(R.id.parentRelativeLayout);
         btnDocs = findViewById(R.id.btnDocs);
-
+        btnBack = findViewById(R.id.btnBack);
         //for testing
-
 
         btnDownload.setOnClickListener(v -> {
             if(!et_output.getText().toString().isEmpty()) {
@@ -93,10 +100,16 @@ public class Output extends AppCompatActivity {
             }
         });
 
+
+        ActivityCompat.requestPermissions(Output.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, PackageManager.PERMISSION_GRANTED);
+
+
         if (ContextCompat.checkSelfPermission(Output.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(Output.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_CODE);
         }
 
+
+        btnBack.setOnClickListener(view -> startActivity(new Intent(getApplicationContext(),MainActivity.class)));
 
         findViewById(R.id.btnTxt).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -138,75 +151,72 @@ public class Output extends AppCompatActivity {
                 Button btnDisregard = dialog.findViewById(R.id.btnDisregard);
                 ProgressBar progressBar2 = dialog.findViewById(R.id.progressBar);
 
-                //Test
+                //Test s
                 btnOkay.setEnabled(false);
                 inputs.setText("");
                 progressBar2.setVisibility(View.VISIBLE);
 
                     String apiKey = Api.API;
 
-                    new Thread(() -> {
-                        try {
-                            URL url = new URL("https://api.openai.com/v1/chat/completions");
-                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                            conn.setRequestMethod("POST");
-                            conn.setRequestProperty("Content-Type", "application/json");
-                            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-                            conn.setDoOutput(true);
+                new Thread(() -> {
+                    try {
+                        URL url = new URL("https://textgears-textgears-v1.p.rapidapi.com/correct");
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                        conn.setRequestProperty("X-RapidAPI-Key", "8a76e1df99msh0aceef082c25cd2p17a7c8jsn14a4f62c2770");
+                        conn.setRequestProperty("X-RapidAPI-Host", "textgears-textgears-v1.p.rapidapi.com");
+                        conn.setDoOutput(true);
 
-                            JSONObject payload = new JSONObject();
-                            payload.put("model", "gpt-3.5-turbo");
+                        String textToCheck = et_output.getText().toString();
+                        String encodedText = URLEncoder.encode(textToCheck, "UTF-8");
+                        String body = "text=" + encodedText;
 
-                            JSONArray messages = new JSONArray();
+                        try (OutputStream os = conn.getOutputStream()) {
+                            byte[] input = body.getBytes("UTF-8");
+                            os.write(input, 0, input.length);
+                        }
 
-                            JSONObject systemMessage = new JSONObject();
-                            systemMessage.put("role", "system");
-                            systemMessage.put("content", "You are an Gammar Checker grammar only return the result, Please no side comment please \n if the grammar is correct return the" + et_output.getText().toString() + "\n \n then only return the output you dont need to explain to user"); // The content passed to this method
+                        int responseCode = conn.getResponseCode();
+                        if (responseCode == HttpURLConnection.HTTP_OK) {
+                            try (Scanner scanner = new Scanner(conn.getInputStream())) {
+                                String jsonResponse = scanner.useDelimiter("\\A").next();
+                                try {
+                                    JSONObject responseObj = new JSONObject(jsonResponse);
+                                    Log.d("RESULT", "RESULT" + responseObj);
 
-                            JSONObject userMessage = new JSONObject();
-                            userMessage.put("role", "user");
-                            userMessage.put("content", "Only return the grammar only, if the grammar is correct return the " +   et_output.getText().toString() + "\n \n\n Check the grammar: " + et_output.getText().toString()); // The content passed to this method
-                            messages.put(userMessage);
+                                    // First get the "response" JSONObject
+                                    JSONObject responseObject = responseObj.getJSONObject("response");
 
-                            payload.put("messages", messages);
-
-                            try (java.io.OutputStream os = conn.getOutputStream()) {
-                                byte[] input = payload.toString().getBytes("UTF-8");
-                                os.write(input, 0, input.length);
-                            }
-
-                            int responseCode = conn.getResponseCode();
-                            if (responseCode == HttpURLConnection.HTTP_OK) {
-                                try (Scanner scanner = new Scanner(conn.getInputStream())) {
-                                    String jsonResponse = scanner.useDelimiter("\\A").next();
-                                    JSONObject obj = new JSONObject(jsonResponse);
-                                    JSONArray choices = obj.getJSONArray("choices");
-                                    JSONObject firstChoice = choices.getJSONObject(0);
-                                    String messageContent = firstChoice.getString("message"); // Assuming the response structure
-                                    JSONObject messageJson = new JSONObject(messageContent);
-                                    String contents = messageJson.getString("content");
-                                    Log.d("messageContent", messageContent);
+                                    // Now extract the "corrected" string from the responseObject
+                                    String correctedText = responseObject.getString("corrected");
 
                                     runOnUiThread(() -> {
-                                        // Handle the response content
-                                        // For example, you can start a new activity with the response
-                                        progressBar2.setVisibility(View.GONE);
-                                        inputs.setText(contents);
-                                        progressBar.setVisibility(View.GONE);
+                                        inputs.setText(correctedText); // Display the corrected text
                                         btnOkay.setEnabled(true);
+                                        progressBar2.setVisibility(View.GONE);
+                                        progressBar.setVisibility(View.GONE);
 
                                     });
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                    runOnUiThread(() -> Toast.makeText(Output.this, "Error parsing response: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                                    dialog.hide();
                                 }
-                            } else {
-                                progressBar.setVisibility(View.GONE);
-                                runOnUiThread(() -> Toast.makeText(Output.this, "Failed with response code: " + responseCode, Toast.LENGTH_LONG).show());
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            progressBar.setVisibility(View.GONE);
-                            runOnUiThread(() -> Toast.makeText(Output.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                        } else {
+                            progressBar2.setVisibility(View.GONE);
+                            runOnUiThread(() -> Toast.makeText(Output.this, "Failed with response code: " + responseCode, Toast.LENGTH_LONG).show());
+                            dialog.hide();
+
                         }
-                    }).start();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        progressBar2.setVisibility(View.GONE);
+                        runOnUiThread(() -> Toast.makeText(Output.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                    }
+                }).start();
+
 
 
 
@@ -244,6 +254,16 @@ public class Output extends AppCompatActivity {
         });
 
 
+        File filePath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "HandwritingApp" + System.currentTimeMillis() + ".docx");
+
+
+        try {
+            if(!filePath.exists()){
+                filePath.createNewFile();
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
 
         btnDocs.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -251,29 +271,35 @@ public class Output extends AppCompatActivity {
 
                 progressBar.setVisibility(View.VISIBLE);
 
-                String fileName = "docx" + String.valueOf(System.currentTimeMillis());
-
-
                 try {
-                    File fileDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "HandwritingApp");
-                    if (!fileDir.exists()) {
-                        fileDir.mkdirs(); // Create the directory if it does not exist
+                    XWPFDocument document = new XWPFDocument();
+                    XWPFParagraph paragraph = document.createParagraph();
+                    XWPFRun run = paragraph.createRun();
+
+                    run.setText(et_output.getText().toString());
+                    run.setFontSize(24);
+
+                    FileOutputStream fileOutputStream = new FileOutputStream(filePath);
+                    document.write(fileOutputStream);
+
+                    if(fileOutputStream != null){
+                        fileOutputStream.flush();
+                        fileOutputStream.close();
                     }
-                    File file = new File(fileDir, fileName + ".docx");
-                    FileWriter writer = new FileWriter(file);
-                    writer.append(et_output.getText().toString());
-                    writer.flush();
-                    writer.close();
-                    Toast.makeText(Output.this, "Saved to " + file.getAbsolutePath(), Toast.LENGTH_SHORT).show();
-                    startActivity(new Intent(getApplicationContext(),MainActivity.class));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    // Handle the exception
+
+                    document.close();
+
+                    Toast.makeText(Output.this, "SAVED AS DOCS", Toast.LENGTH_SHORT).show();
                     progressBar.setVisibility(View.GONE);
+                } catch (Exception e) {
+                    e.printStackTrace();
                     Toast.makeText(Output.this, "Something error", Toast.LENGTH_SHORT).show();
+
                 }
             }
         });
+
+
 
 
     }
@@ -435,7 +461,6 @@ public class Output extends AppCompatActivity {
         try{
             document.writeTo(new FileOutputStream(filePath));
             Toast.makeText(this, "Saved Pdf Successfully! ", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(getApplicationContext(),MainActivity.class));
         }catch (Exception e){
             e.printStackTrace();
 //            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -448,5 +473,6 @@ public class Output extends AppCompatActivity {
             myPath.delete();
 //        openPdf(path);
     }
+
 
 }
