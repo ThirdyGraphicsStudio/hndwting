@@ -1,0 +1,3 @@
+/build
+# Ignore Api.class file
+app/src/main/java/com/ninebythree/handwritingextraction/Api.class
