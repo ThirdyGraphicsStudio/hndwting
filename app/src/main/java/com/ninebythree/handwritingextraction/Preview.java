@@ -3,6 +3,7 @@ package com.ninebythree.handwritingextraction;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -62,6 +63,8 @@ public class Preview extends AppCompatActivity {
     private ProgressBar progressBar;
     String extractedText;
     private int imageSize = 224;
+    private Dialog dialog;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +79,11 @@ public class Preview extends AppCompatActivity {
         imgPreview.setImageURI(imageUri);
 
         btnExtract.setOnClickListener(v -> {
-            progressBar.setVisibility(ProgressBar.VISIBLE);
+            dialog = new Dialog(Preview.this);
+            dialog.setContentView(R.layout.dialog_extracting);
+            dialog.setCancelable(false);
+            dialog.show();
+
             try {
                 if((segmentImage(segmentImage(this, imageUri)).equals("1"))){
                     sendapi(imageUri);
@@ -189,10 +196,12 @@ public class Preview extends AppCompatActivity {
                                 if(extractedText.equals("")){
                                     Toast.makeText(getApplicationContext(), "Something wrong in the image", Toast.LENGTH_SHORT).show();
                                     finish();
+                                    dialog.dismiss();
                                 }else{
                                     Intent intent = new Intent(Preview.this, Output.class);
                                     intent.putExtra("output", extractedText);
                                     startActivity(intent);
+                                    dialog.dismiss();
                                 }
 
                             }
