@@ -39,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Base64;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.json.JSONArray;
@@ -159,13 +160,33 @@ public class Preview extends AppCompatActivity {
 
 
         // Initialize the OkHttpClient
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client =new OkHttpClient.Builder()
+                .connectTimeout(60, TimeUnit.SECONDS) // Connection timeout
+                .readTimeout(60, TimeUnit.SECONDS)    // Read timeout
+                .writeTimeout(60, TimeUnit.SECONDS)   // Write timeout
+                .build();
+
+
+
 
         // Enqueue the request
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 // Handle the error
+
+                // This method is called when the request fails
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getApplicationContext(),
+                                "Extraction failed. Either no internet connection or file cannot extracted.",
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                        // Any additional actions you want to take when the request fails
+                    }
+                });
+
             }
 
             @Override

@@ -56,6 +56,7 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Scanner;
 import android.Manifest;
 
@@ -83,6 +84,12 @@ public class Output extends AppCompatActivity  {
         btnCheck = findViewById(R.id.btnCheck);
         Intent intent = getIntent();
         String output = intent.getStringExtra("output");
+
+        Log.d("OUTPUT", "OUTPUT" + output);
+
+        // Replace newline characters with an empty string
+        output = output.replace("\n", " ");
+
         et_output.setText(output);
         progressBar = findViewById(R.id.progressBar);
         btnDownload = findViewById(R.id.btnPdf);
@@ -121,7 +128,13 @@ public class Output extends AppCompatActivity  {
                     if (!fileDir.exists()) {
                         fileDir.mkdirs(); // Create the directory if it does not exist
                     }
-                    String fileName = "txt" + String.valueOf(System.currentTimeMillis());
+
+                    // Create a timestamp
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMdyyyy_hhmmssaa", Locale.getDefault());
+                    String timestamp = dateFormat.format(new Date());
+
+
+                    String fileName = "txt" + timestamp;
 
                     File file = new File(fileDir, fileName + ".txt");
                     FileWriter writer = new FileWriter(file);
@@ -252,9 +265,11 @@ public class Output extends AppCompatActivity  {
                 dialog.show();
             }
         });
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMdyyyy_hhmmssaa", Locale.getDefault());
+        String timestamp = dateFormat.format(new Date());
 
 
-        File filePath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "HandwritingApp" + System.currentTimeMillis() + ".docx");
+        File filePath = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "HandwritingApp_" + timestamp + ".docx");
 
 
         try {
@@ -377,7 +392,7 @@ public class Output extends AppCompatActivity  {
         }
     }
 
-    private  void takeScreenshot(){
+    private  void takeScreenshot2(){
         progressBar.setVisibility(View.VISIBLE);
         File folder = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/Download/");
         if(!folder.exists()){
@@ -416,6 +431,54 @@ public class Output extends AppCompatActivity  {
         downloadPdf();
 
     }
+
+
+    private void takeScreenshot() {
+        progressBar.setVisibility(View.VISIBLE);
+        File folder = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download/");
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+
+        // Create a timestamp
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMdyyyy_hhmmssaa", Locale.getDefault());
+        String timestamp = dateFormat.format(new Date());
+
+        path = folder.getAbsolutePath();
+        path = path + "/" + "handwriting_" + timestamp + ".pdf";
+
+        totalHeight = parentRelativeLayout.getChildAt(0).getHeight();
+        totalWidth = parentRelativeLayout.getChildAt(0).getWidth();
+
+        // Assuming you have a method to get the bitmap from a view
+        bitmap = getBitmapFromView(linearLayout, totalHeight, totalWidth); // You need to implement this method
+
+        PdfDocument document = new PdfDocument();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(bitmap.getWidth(), bitmap.getHeight(), 1).create();
+        PdfDocument.Page page = document.startPage(pageInfo);
+
+        Canvas canvas = page.getCanvas();
+        Paint paint = new Paint();
+        canvas.drawPaint(paint);
+        canvas.drawBitmap(bitmap, 0, 0, null);
+        document.finishPage(page);
+
+        File filePath = new File(path);
+        try {
+            document.writeTo(new FileOutputStream(filePath));
+            Toast.makeText(this, "Saved Pdf Successfully! ", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } finally {
+            document.close();
+            progressBar.setVisibility(View.GONE);
+        }
+    }
+
+
+
+
     //6-22
     public Bitmap getBitmapFromView(View view, int totalHeight, int totalWidth) {
         Bitmap returnedBitmap = Bitmap.createBitmap(totalWidth, totalHeight, Bitmap.Config.ARGB_8888);
